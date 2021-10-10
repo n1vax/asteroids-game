@@ -1,3 +1,5 @@
+import { DEGREES_TO_RADIANS, RADIANS_TO_DEGREES } from "./helpers/constatns";
+
 export interface IVector2 {
   x: number;
   y: number;
@@ -105,6 +107,24 @@ class Vector2 implements IVector2 {
 
   magnitude() {
     return Math.hypot(this.x, this.y);
+  }
+
+  angle(radians?: boolean) {
+    const angle = Math.PI - Math.atan2(this.x, this.y);
+
+    return radians ? angle : angle * RADIANS_TO_DEGREES;
+  }
+
+  rotate(value: number, isRadians?: boolean) {
+    const radians = isRadians ? value : value * DEGREES_TO_RADIANS;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+
+    const x = cos * this.x - sin * this.y;
+    const y = sin * this.x + cos * this.y;
+
+    this.x = x;
+    this.y = y;
   }
 
   normalize(): this {
