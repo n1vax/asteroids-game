@@ -17,19 +17,33 @@ class AnimationLoop {
 
   private _loop() {
     const currentTime = this._getTime();
+
     this._runtime = currentTime - this._startTime;
     this._delta = currentTime - this._lastUpdate;
+    this._lastUpdate = currentTime;
 
-    if (this._delta > this._updateDelay) {
-      this._lastUpdate = currentTime;
-
-      if (this._callback) {
-        this._callback();
-      }
+    if (this._callback) {
+      this._callback();
     }
 
     this._rafId = requestAnimationFrame(this._loop);
   }
+  // fixed updates
+  // private _loop() {
+  //   const currentTime = this._getTime();
+  //   this._runtime = currentTime - this._startTime;
+  //   this._delta = currentTime - this._lastUpdate;
+
+  //   if (this._delta > this._updateDelay) {
+  //     this._lastUpdate = currentTime;
+
+  //     if (this._callback) {
+  //       this._callback();
+  //     }
+  //   }
+
+  //   this._rafId = requestAnimationFrame(this._loop);
+  // }
 
   private _getTime() {
     return Date.now();

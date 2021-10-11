@@ -58,6 +58,25 @@ class Drawer {
     this.applyStyles(styles, drawCircle);
   }
 
+  moveTo(p: Vector2) {
+    this.ctx.moveTo(p.x, p.y);
+  }
+
+  lineTo(p: Vector2) {
+    this.ctx.lineTo(p.x, p.y);
+  }
+
+  line(start: Vector2, end: Vector2, styles?: DrawerShapeStyle) {
+    const drawLine = () => {
+      this.ctx.beginPath();
+      this.moveTo(start);
+      this.lineTo(end);
+      this.ctx.closePath()
+    }
+
+    this.applyStyles(styles, drawLine);
+  }
+
   arc(
     position: IVector2,
     radius: number,

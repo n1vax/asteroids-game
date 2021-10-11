@@ -9,31 +9,18 @@ class Vector2 implements IVector2 {
   public x: number;
   public y: number;
 
-  static get zero(): Vector2 {
-    return new Vector2(0, 0);
-  }
-
-  static get left(): Vector2 {
-    return new Vector2(-1, 0);
-  }
-
-  static get right(): Vector2 {
-    return new Vector2(1, 0);
-  }
-
-  static get top(): Vector2 {
-    return new Vector2(0, -1);
-  }
-
-  static get bottom(): Vector2 {
-    return new Vector2(0, 1);
-  }
+  static get zero(): Vector2 { return new Vector2(0); }
+  static get one(): Vector2 { return new Vector2(1); }
+  static get left(): Vector2 { return new Vector2(-1, 0); }
+  static get right(): Vector2 { return new Vector2(1, 0); }
+  static get top(): Vector2 { return new Vector2(0, -1); }
+  static get bottom(): Vector2 { return new Vector2(0, 1); }
 
   constructor();
   constructor(xAndY: number);
-  constructor(v: Vector2 | IVector2);
+  constructor(v: IVector2);
   constructor(x: number, y: number);
-  constructor(xyv?: number | Vector2 | IVector2, y?: number) {
+  constructor(xyv?: number | IVector2, y?: number) {
     if (typeof xyv === "number") {
       this.x = xyv;
       this.y = typeof y === "number" ? y : xyv;
@@ -44,6 +31,20 @@ class Vector2 implements IVector2 {
       this.x = 0;
       this.y = 0;
     }
+  }
+
+  set(xAndY: number): this;
+  set(v: Vector2 | IVector2): this;
+  set(xyv: number | Vector2 | IVector2, y?: number): this {
+    if (typeof xyv === "number") {
+      this.x = xyv;
+      this.y = typeof y === "number" ? y : xyv;
+    } else if (Vector2.isVector2Like(xyv)) {
+      this.x = xyv.x;
+      this.y = xyv.y
+    }
+
+    return this;
   }
 
   static isVector2Like(v: any): v is IVector2 {
@@ -92,10 +93,7 @@ class Vector2 implements IVector2 {
   }
 
   clone(): Vector2 {
-    return new Vector2(
-      this.x,
-      this.y
-    );
+    return new Vector2(this);
   }
 
   distance(v: Vector2): number {
@@ -105,8 +103,12 @@ class Vector2 implements IVector2 {
     return Math.hypot(x, y);
   }
 
-  magnitude() {
+  get magnitude() {
     return Math.hypot(this.x, this.y);
+  }
+
+  set magnitude(newMagnitude: number) {
+    this.normalize().multiply(newMagnitude);
   }
 
   angle(radians?: boolean) {
@@ -125,16 +127,26 @@ class Vector2 implements IVector2 {
 
     this.x = x;
     this.y = y;
+
+    return this;
   }
 
   normalize(): this {
-    const m = this.magnitude();
+    const m = this.magnitude;
 
     if (m > 0) {
       this.multiply(1 / m);
     }
 
     return this;
+  }
+
+  toArray(): [number, number] {
+    return [this.x, this.y]
+  }
+
+  get normalized(): Vector2 {
+    return new Vector2(this).normalize();
   }
 }
 

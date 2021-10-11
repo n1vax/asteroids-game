@@ -12,17 +12,6 @@ interface Props {
 
 }
 
-
-
-class Spaceship {
-  constructor(
-    public position: Vector2 = new Vector2(),
-    public velocity: Vector2 = new Vector2()
-  ) {
-
-  }
-}
-
 interface Entity {
   update(): void;
 }
@@ -39,48 +28,53 @@ const Home = (props: Props) => {
 
     const createAsteroid = (): Entity => {
       const size = new Size(50, 60);
-      const maxAcceleration = 300;
-      const accelerationSpeed = 5;
+      const accelerationSpeed = 1;
+      const rotationSpeed = 200;
+      const maxSpeed = 200;
 
+      let rotateDirection = 0;
       let position = renderer.center;
       let velocity = Vector2.zero;
-      let direction = Vector2.top;
-      let acceleration = 0;
+      let lookAt = Vector2.top;
 
-      const radius = 50;
-      const rotationSpeed = 200;
-      const moveSpeed = 300;
+      let shouldApplyAcceleration = false;
 
-      const input = () => {
+      const handleInput = () => {
         if (userInput.pressedKeys.KeyD) {
-          direction.rotate(rotationSpeed * animationLoop.delta)
+          rotateDirection = 1;
+        } else if (userInput.pressedKeys.KeyA) {
+          rotateDirection = -1;
+        } else {
+          rotateDirection = 0;
         }
 
-        if (userInput.pressedKeys.KeyA) {
-          direction.rotate(-rotationSpeed * DEGREES_TO_RADIANS);
-        }
-
-        if (userInput.pressedKeys.KeyW) {
-          acceleration += accelerationSpeed * animationLoop.delta;
-
-          if (acceleration > maxAcceleration * animationLoop.delta) {
-            acceleration = maxAcceleration * animationLoop.delta;
-          }
-        }
-
-        if (userInput.pressedKeys.KeyS) {
-          acceleration -= accelerationSpeed * animationLoop.delta;
-
-          if (acceleration < 0) {
-            acceleration = 0;
-          }
-        }
-
-        velocity = new Vector2(direction).multiply(acceleration);
+        shouldApplyAcceleration = userInput.pressedKeys.KeyW;
       }
 
       const updatePosition = () => {
+        if (rotateDirection !== 0) {
+          lookAt.rotate(
+            rotateDirection *
+            rotationSpeed *
+            animationLoop.delta
+          );
+        }
+
+        if (shouldApplyAcceleration) {
+          const acceleration = lookAt.clone().multiply(accelerationSpeed * animationLoop.delta);
+
+          velocity.add(acceleration);
+        }
+
+
+        const maxDeltaSpeed = maxSpeed * animationLoop.delta;
+
+        if (velocity.magnitude > maxDeltaSpeed) {
+          velocity.magnitude = maxDeltaSpeed;
+        }
+
         position.add(velocity);
+
 
         // if (
         //   position.x > renderer.width + radius
@@ -114,25 +108,80 @@ const Home = (props: Props) => {
         }
       }
 
+      const debugStyles = {
+        stroke: {
+          color: "red",
+          width: 1
+        }
+      }
+
       const drawSpaceship = (
         p = position,
-        r = radius,
-        s = asteroidDrawerStyle
       ) => {
 
         drawer.circle(p, 2, {
           fill: "red"
         });
 
-        drawer.applyStyles(asteroidDrawerStyle, ({ ctx }) => {
+        // velocity direction
+        drawer.applyStyles(debugStyles, ({ ctx }) => {
           ctx.translate(p.x, p.y);
-          ctx.rotate(direction.angle(true));
+
+          drawer.line(
+            Vector2.zero,
+            velocity.normalized.multiply(velocity.magnitude * 10)
+          )
+        });
+
+        // looking direction
+        drawer.applyStyles({
+          stroke: {
+            width: 1,
+            color: "blue"
+          }
+        }, ({ ctx }) => {
+          ctx.translate(p.x, p.y);
+
+          drawer.line(
+            Vector2.zero,
+            lookAt.clone().multiply(size.height)
+          )
+        });
+
+        drawer.applyStyles(asteroidDrawerStyle, ({ ctx }) => {
+          const bottomLength = size.height / 3;
+          const topLength = size.height - bottomLength;
+
+          const angle = lookAt.angle(true);
+
+          const r0 = [Math.cos(angle), -Math.sin(angle)];
+          const r1 = [Math.sin(angle), Math.cos(angle)];
+
+          const a = new Vector2(p.x, p.y - topLength);
+          const b = new Vector2(p.x + size.width / 2, p.y + bottomLength);
+          const c = new Vector2(p.x - size.width / 2, p.y + bottomLength);
+
+          const rp = p;
+
+          const center = new Vector2(
+            rp.x - r0[0] * rp.x - r0[1] * rp.y,
+            rp.y - r1[0] * rp.x - r1[1] * rp.y
+          );
 
           ctx.beginPath();
 
-          ctx.moveTo(0, -2 * size.height / 3);
-          ctx.lineTo(size.width / 2, size.height / 3);
-          ctx.lineTo(-size.width / 2, size.height / 3);
+          drawer.moveTo(new Vector2(
+            r0[0] * a.x + r0[1] * a.y + center.x,
+            r1[0] * a.x + r1[1] * a.y + center.y
+          ));
+          drawer.lineTo(new Vector2(
+            r0[0] * b.x + r0[1] * b.y + center.x,
+            r1[0] * b.x + r1[1] * b.y + center.y
+          ));
+          drawer.lineTo(new Vector2(
+            r0[0] * c.x + r0[1] * c.y + center.x,
+            r1[0] * c.x + r1[1] * c.y + center.y
+          ));
 
           ctx.closePath();
         })
@@ -161,7 +210,7 @@ const Home = (props: Props) => {
       }
 
       const update = () => {
-        input();
+        handleInput();
         updatePosition();
         render();
       }
