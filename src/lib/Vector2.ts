@@ -1,4 +1,4 @@
-import { DEGREES_TO_RADIANS, RADIANS_TO_DEGREES } from "./helpers/constatns";
+import { DEGREES_TO_RADIANS, RADIANS_TO_DEGREES } from "./utils/math";
 
 export interface IVector2 {
   x: number;
@@ -117,7 +117,9 @@ class Vector2 implements IVector2 {
     return radians ? angle : angle * RADIANS_TO_DEGREES;
   }
 
-  rotate(value: number, isRadians?: boolean) {
+  rotate(degrees: number): this;
+  rotate(radians: number, isRadians: boolean): this;
+  rotate(value: number, isRadians?: boolean): this {
     const radians = isRadians ? value : value * DEGREES_TO_RADIANS;
     const cos = Math.cos(radians);
     const sin = Math.sin(radians);

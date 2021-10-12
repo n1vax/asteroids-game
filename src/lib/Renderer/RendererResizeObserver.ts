@@ -1,22 +1,19 @@
+import Size from "@lib/Size";
 import Renderer from "./Renderer";
-import Size from "./Size";
 
-export class RendererResizeObserver {
-  private _lastElSize: Size;
-  private _shouldResize: boolean;
+class RendererResizeObserver {
+  private _lastSize: Size = this._renderer.size;
+  private _shouldResize: boolean = true;
 
-  constructor(
-    public readonly renderer: Renderer
-  ) {
-    this._lastElSize = renderer.getElSize();
-    this._shouldResize = false;
-
+  constructor(public readonly _renderer: Renderer) {
     this._handleWindowResize = this._handleWindowResize.bind(this);
 
     this.init();
   }
 
   init() {
+    this.update();
+
     window.addEventListener("resize", this._handleWindowResize);
   }
 
@@ -25,19 +22,20 @@ export class RendererResizeObserver {
   }
 
   private _handleWindowResize(): void {
-    const elSize = this.renderer.getElSize();
+    const size = this._renderer.size;
 
-    if (!this._lastElSize.isEqual(elSize)) {
+    if (!this._lastSize.isEqual(size)) {
       this._shouldResize = true;
-      this._lastElSize = elSize;
+      this._lastSize = size;
     }
   }
 
   update(): void {
     if (this._shouldResize) {
-      this.renderer.resize(this._lastElSize);
-
+      this._renderer.intrinsicSize = this._lastSize;
       this._shouldResize = false;
+    } else {
+      this._renderer.clear();
     }
   }
 }
