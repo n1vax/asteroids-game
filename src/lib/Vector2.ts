@@ -18,19 +18,19 @@ class Vector2 implements IVector2 {
 
   constructor();
   constructor(xAndY: number);
-  constructor(v: IVector2);
+  constructor(v: IVector2 | [number, number]);
   constructor(x: number, y: number);
-  constructor(xyv?: number | IVector2, y?: number) {
-    if (typeof xyv === "number") {
-      this.x = xyv;
-      this.y = typeof y === "number" ? y : xyv;
-    } else if (Vector2.isVector2Like(xyv)) {
-      this.x = xyv.x;
-      this.y = xyv.y
-    } else {
-      this.x = 0;
-      this.y = 0;
+  constructor(x: number | IVector2 | [number, number] = 0, y?: number) {
+    if (typeof x === "number") {
+      y = typeof y === "number" ? y : x;
+    } else if (Vector2.isVector2Like(x)) {
+      ({ x, y } = x);
+    } else if (Array.isArray(x)) {
+      [x, y] = x;
     }
+
+    this.x = x;
+    this.y = y || 0;
   }
 
   set(xAndY: number): this;

@@ -24,6 +24,7 @@ enum SpaceshipControls {
 class Spaceship extends GameEntityBase {
   private _size: Size = new Size(50, 60);
   private _position: Vector2 = new Vector2(this.game.renderer.center);
+  // private _position: Vector2 = new Vector2(0);
   private _velocity: Vector2 = Vector2.zero;
   private _maxSpeed: number = 200;
   private _rotationSpeed: number = 200;
@@ -106,7 +107,7 @@ class Spaceship extends GameEntityBase {
     const debugStyles = {
       stroke: {
         color: "red",
-        width: 1
+        width: 2
       }
     }
 
@@ -130,19 +131,19 @@ class Spaceship extends GameEntityBase {
         rp.y - r1[0] * rp.x - r1[1] * rp.y
       );
 
-      renderer.draw.polygon([
-        new Vector2(
+      renderer.draw.path([
+        [
           r0[0] * a.x + r0[1] * a.y + center.x,
           r1[0] * a.x + r1[1] * a.y + center.y
-        ),
-        new Vector2(
+        ],
+        [
           r0[0] * b.x + r0[1] * b.y + center.x,
           r1[0] * b.x + r1[1] * b.y + center.y
-        ),
-        new Vector2(
+        ],
+        [
           r0[0] * c.x + r0[1] * c.y + center.x,
           r1[0] * c.x + r1[1] * c.y + center.y
-        )
+        ]
       ])
     })
 
@@ -153,11 +154,11 @@ class Spaceship extends GameEntityBase {
 
     // looking direction
     renderer.draw.applyStyles(asteroidDrawerStyle, () => {
-      renderer.ctx.translate(this._position.x, this._position.y);
-      console.log("draw look line");
-      renderer.draw.line(
-        Vector2.zero,
-        this._direction.clone().multiply(this._size.height / 3 * 2)
+      // renderer.ctx.translate(this._position.x, this._position.y);
+      renderer.draw.path([
+        this._position,
+        this._direction.clone().multiply(this._size.height / 3 * 2).add(this._position)
+      ]
       )
     });
 
@@ -184,6 +185,9 @@ class Game {
   public userInput: UserInput;
   public entities: GameEntityBase[] = [];
 
+  public grid: ([number, number])[] = [];
+  public debugObj: { [key: string]: string } = {}
+
   constructor(public readonly canvasEl: HTMLCanvasElement) {
     this._update = this._update.bind(this);
     this._render = this._render.bind(this);
@@ -195,11 +199,20 @@ class Game {
       render: this._render
     });
 
+
+    // const gridSize = 10.5;
+
+    // this.grid = Array.from({length: Math.round(this.renderer.width / gridSize)}, (_, i) => {
+    //   const x
+    //   return (i + 1) * gridSize
+    // }) 
+
     this.init();
   }
 
   init() {
     this.entities.push(new Spaceship(this));
+
   }
 
   destroy() {
@@ -211,13 +224,47 @@ class Game {
 
   private _update() {
     this.renderer.resizeObserver.update();
-    this.renderer.background("#000");
 
     this.entities.forEach(entity => entity.update());
   }
 
+
   private _render() {
+    this.renderer.background("#000");
+    this.renderer.draw.grid(20, {
+      color: "#fff",
+      alpha: 0.1
+    });
+
     this.entities.forEach(entity => entity.render());
+
+    // this.renderer.ctx.save();
+    // // this.renderer.ctx.scale(1.3, 1.3);
+    // this.renderer.ctx.restore();
+    // this._lineRenderFix();
+
+
+    // const { ctx, center } = this.renderer;
+
+    // let x = center.x + 0.5;
+    // let size = 51 + 0.5;
+    // console.log(x, size, x + size, (x + size) % 1);
+    // ctx.fillRect(x, center.y, size, size);
+
+
+    // renderer.draw.applyStyles({
+    //   stroke: {
+    //     width: 1,
+    //     color: "#fff"
+    //   }
+    // }, () => {
+    //   renderer.ctx.translate(renderer.center.x, renderer.center.y);
+    //   renderer.draw.path(
+    //     [[0, -renderer.height / 2],
+    //     [0, renderer.height / 2]],
+    //     // this._direction.clone().multiply(this._size.height / 3 * 2)
+    //   )
+    // });
   }
 }
 
