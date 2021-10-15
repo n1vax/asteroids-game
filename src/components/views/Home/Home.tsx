@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { ChangeEventHandler, useEffect, useRef, useState } from "react"
 import Vector2 from "@lib/Vector2";
 import { clamp } from "@lib/utils/math";
 import Random from "@lib/Random";
@@ -6,62 +6,102 @@ import Game from "@lib/Game";
 
 interface Props { }
 
-const generatePolygon = (
-  center: Vector2,
-  radius: number,
-  irregularity: number,
-  spikiness: number,
-  numOfVertices: number
-) => {
-  irregularity = clamp(irregularity, 0, 1) * 2 * Math.PI / numOfVertices;
-  spikiness = clamp(spikiness, 0, 1) * radius;
-
-  const min = (2 * Math.PI / numOfVertices) - irregularity;
-  const max = (2 * Math.PI / numOfVertices) + irregularity;
-  let sum = 0;
-
-  let angleSteps = Array.from({ length: numOfVertices }, () => {
-    const value = Random.get(min, max);
-
-    sum += value;
-
-    return value;
-  });
-
-  const k = sum / (2 * Math.PI);
-
-  angleSteps = angleSteps.map((v) => v / k);
-
-  let angle = Random.get(0, 2 * Math.PI);
-
-  const vertices = angleSteps.map((angleStep) => {
-    const value = Random.get(0, 2 * radius);
-
-    const x = center.x + value * Math.cos(angle);
-    const y = center.y + value * Math.sin(angle);
-
-    angle += angleStep;
-
-    return new Vector2(x, y);
-  });
-
-  return vertices;
-}
-
 const Home = (props: Props) => {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const gameRef = useRef<Game | null>();
+
+  const [asteroidProperties, setAsteroidProperties] = useState(() => {
+    return {
+      maxRadius: 100,
+      numOfVertices: 10,
+      spikiness: 0,
+      maxSpikeSize: 200
+    }
+  })
 
   useEffect(() => {
     const canvasEl = canvasElRef.current!;
-    const game = new Game(canvasEl);
+    const game = gameRef.current = new Game(canvasEl);
 
     return () => {
+      gameRef.current = null;
+
+      console.log("destroy");
+
       game.destroy();
     }
   }, []);
 
+  const handleButtonClick = () => {
+    const game = gameRef.current!;
+
+    game.regenerateAsteroid(asteroidProperties)
+  }
+
+  const handleInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+    const game = gameRef.current!;
+
+    setAsteroidProperties(old => ({
+      ...old,
+      [e.target.name]: +e.target.value
+    }));
+
+    game.regenerateAsteroid(asteroidProperties)
+  }
+
   return (
     <div className="app">
+      <div style={{ color: "#fff" }} className="ui">
+        <button onClick={handleButtonClick}>
+          regenerate
+        </button>
+        <div>
+          max radius
+          <input
+            onChange={handleInputChange}
+            value={asteroidProperties.maxRadius}
+            name="maxRadius"
+            type="range"
+            min={100}
+            max={500}
+          />
+        </div>
+        <div>
+          max spike size
+          <input
+            onChange={handleInputChange}
+            value={asteroidProperties.maxSpikeSize}
+            name="maxSpikeSize"
+            type="range"
+            min={100}
+            max={500}
+          />
+        </div>
+        <div>
+          spikiness
+          <input
+            onChange={handleInputChange}
+            value={asteroidProperties.spikiness}
+            name="spikiness"
+            type="range"
+            step={0.1}
+            min={0}
+            max={1}
+          />
+        </div>
+
+        <div>
+          numOfVertices
+          <input
+            onChange={handleInputChange}
+            value={asteroidProperties.numOfVertices}
+            name="numOfVertices"
+            type="range"
+            min={3}
+            max={100}
+          />
+        </div>
+      </div>
       <canvas className="canvas" ref={canvasElRef} />
     </div>
   )

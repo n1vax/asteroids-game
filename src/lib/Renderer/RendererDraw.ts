@@ -1,6 +1,6 @@
 import Size, { ISize } from "@lib/Size";
 import { countDigits } from "@lib/utils/math";
-import Vector2, { IVector2 } from "@lib/Vector2";
+import Vector2, { Vector2Object } from "@lib/Vector2";
 import Renderer from "./Renderer";
 
 interface DrawShapeStyle {
@@ -19,9 +19,9 @@ interface StrokeStyle {
 interface DrawLine {
   (): void;
   (xAndY: number): void;
-  (v: IVector2 | [number, number]): void;
+  (v: Vector2Object | [number, number]): void;
   (x: number, y: number): void;
-  (x?: number | IVector2 | [number, number], y?: number): void
+  (x?: number | Vector2Object | [number, number], y?: number): void
 }
 
 interface IRendererDraw {
@@ -68,7 +68,7 @@ class RendererDraw implements IRendererDraw {
 
 
 
-  polygon(points: IVector2[], styles?: DrawShapeStyle) {
+  polygon(points: Vector2Object[], styles?: DrawShapeStyle) {
     const drawPolygon = () => {
       this._renderer.ctx.beginPath();
       this.moveTo(points[0]);
@@ -84,25 +84,16 @@ class RendererDraw implements IRendererDraw {
     this.applyStyles(styles, drawPolygon);
   }
 
-  circle(position: IVector2, radius: number, styles?: DrawShapeStyle) {
-    const drawCircle = () => {
-      this._renderer.ctx.beginPath();
-      this.arc(position, radius);
-      this._renderer.ctx.closePath()
-    }
+  moveTo(x?: number | Vector2Object | [number, number], y?: number): void {
 
-    this.applyStyles(styles, drawCircle);
-  }
-
-  moveTo(x?: number | IVector2 | [number, number], y?: number): void {
-    // console.log("moveto");
     [x, y] = this.toPoint(x, y);
+
 
     this._renderer.ctx.moveTo(x, y);
   }
 
   toPoint(
-    x: number | IVector2 | [number, number] | undefined,
+    x: number | Vector2Object | [number, number] | undefined,
     y?: number | undefined
   ): [number, number] {
     if (Array.isArray(x)) {
@@ -116,47 +107,42 @@ class RendererDraw implements IRendererDraw {
       x = 0;
     }
 
-    // return [x, y];
-    return [x, y];
+    return [+x.toFixed(2), +y.toFixed(2)];
   }
 
-  lineTo(x?: number | IVector2 | [number, number], y?: number) {
+  lineTo(x?: number | Vector2Object | [number, number], y?: number) {
     [x, y] = this.toPoint(x, y);
 
     this._renderer.ctx.lineTo(x, y);
   }
 
   grid(size: number, {
-    alpha = 0.2,
+    opacity = 0.2,
     color = "#000"
   }: {
-    alpha?: number,
+    opacity?: number,
     color?: string
-  } = { alpha: 0.2, color: "#000" }) {
-    const boundary = this._renderer.size;
+  } = { opacity: 0.2, color: "#000" }) {
+    const { start, end } = this._renderer.boundary;
 
     this._renderer.ctx.save();
 
-    this._renderer.ctx.globalAlpha = alpha;
+    this._renderer.ctx.globalAlpha = opacity;
 
-    for (let x = size, max = boundary.width; x < max; x += size) {
-      this.line(
-        [x, 0],
-        [x, boundary.height],
-        {
-          fill: color
-        }
-      )
+    for (let x = 0, max = end.x; x < max; x += size) {
+      this.line([x, start.y], [x, end.y], { fill: color })
+
+      if (x !== 0) {
+        this.line([-x, start.y], [-x, end.y], { fill: color })
+      }
     }
 
-    for (let y = size, max = boundary.height; y < max; y += size) {
-      this.line(
-        [0, y],
-        [boundary.width, y],
-        {
-          fill: color
-        }
-      )
+    for (let y = 0, max = end.y; y < max; y += size) {
+      this.line([start.x, y], [end.x, y], { fill: color })
+
+      if (y !== 0) {
+        this.line([start.x, -y], [end.x, -y], { fill: color })
+      }
     }
 
     this._renderer.ctx.restore();
@@ -164,8 +150,8 @@ class RendererDraw implements IRendererDraw {
   }
 
   line(
-    start: IVector2 | [number, number],
-    end: IVector2 | [number, number],
+    start: Vector2Object | [number, number],
+    end: Vector2Object | [number, number],
     {
       fill = "#000",
       width = 1
@@ -195,10 +181,11 @@ class RendererDraw implements IRendererDraw {
     ctx.restore();
   }
 
-  path(points: ([number, number] | IVector2)[]): void;
+  path(points: ([number, number] | Vector2Object)[]): void;
   path(draw: (draw: RendererDraw) => void): void;
-  path(pointsOrDraw: ((draw: RendererDraw) => void) | ([number, number] | IVector2)[]) {
-    this._renderer.ctx.beginPath();
+  path(pointsOrDraw: ((draw: RendererDraw) => void) | ([number, number] | Vector2Object)[]) {
+    const { ctx } = this._renderer;
+    ctx.beginPath();
 
     if (Array.isArray(pointsOrDraw)) {
       this.moveTo(pointsOrDraw[0]);
@@ -210,7 +197,7 @@ class RendererDraw implements IRendererDraw {
       pointsOrDraw(this);
     }
 
-    this._renderer.ctx.closePath();
+    ctx.closePath();
   }
 
   fixLineWidthBoundaryMismatch(px: number, lineWidth: number) {
@@ -258,26 +245,35 @@ class RendererDraw implements IRendererDraw {
   }
 
   arc(
-    position: IVector2,
+    position: Vector2Object,
     radius: number,
     startAngle: number = 0,
     engAngle: number = Math.PI * 2
   ) {
     this._renderer.ctx.arc(
-      position.x * this._renderer.dpr,
-      position.y * this._renderer.dpr,
-      radius * this._renderer.dpr,
+      position.x,
+      position.y,
+      radius,
       startAngle,
       engAngle
     );
   }
 
-  rect(position: IVector2, size: ISize) {
+  circle(position: Vector2Object, radius: number) {
+    const { ctx } = this._renderer;
+
+    ctx.beginPath();
+    this.arc(position, radius);
+    ctx.closePath();
+  }
+
+
+  rect(position: Vector2Object, size: ISize) {
     this._renderer.ctx.rect(
-      position.x * this._renderer.dpr,
-      position.y * this._renderer.dpr,
-      size.width * this._renderer.dpr,
-      size.height * this._renderer.dpr
+      position.x,
+      position.y,
+      size.width,
+      size.height
     );
   }
 }

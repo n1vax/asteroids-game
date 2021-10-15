@@ -1,11 +1,15 @@
 import { DEGREES_TO_RADIANS, RADIANS_TO_DEGREES } from "./utils/math";
 
-export interface IVector2 {
+export type Vector2Object = {
   x: number;
   y: number;
 }
 
-class Vector2 implements IVector2 {
+type Vector2Array = [number, number];
+
+export type Vector2Like = Vector2Object | Vector2Array;
+
+class Vector2 implements Vector2Object {
   public x: number;
   public y: number;
 
@@ -18,9 +22,9 @@ class Vector2 implements IVector2 {
 
   constructor();
   constructor(xAndY: number);
-  constructor(v: IVector2 | [number, number]);
+  constructor(v: Vector2Object | [number, number]);
   constructor(x: number, y: number);
-  constructor(x: number | IVector2 | [number, number] = 0, y?: number) {
+  constructor(x: number | Vector2Object | [number, number] = 0, y?: number) {
     if (typeof x === "number") {
       y = typeof y === "number" ? y : x;
     } else if (Vector2.isVector2Like(x)) {
@@ -34,8 +38,8 @@ class Vector2 implements IVector2 {
   }
 
   set(xAndY: number): this;
-  set(v: Vector2 | IVector2): this;
-  set(xyv: number | Vector2 | IVector2, y?: number): this {
+  set(v: Vector2 | Vector2Object): this;
+  set(xyv: number | Vector2 | Vector2Object, y?: number): this {
     if (typeof xyv === "number") {
       this.x = xyv;
       this.y = typeof y === "number" ? y : xyv;
@@ -47,13 +51,37 @@ class Vector2 implements IVector2 {
     return this;
   }
 
-  static isVector2Like(v: any): v is IVector2 {
+  static isVector2Like(v: any): v is Vector2Object {
     return (
       typeof v === "object" &&
       typeof v.x === "number" &&
       typeof v.y === "number"
     )
   }
+
+  static toObject(v: Vector2Like | number): Vector2Object {
+    if (v instanceof Vector2) {
+      return v.toObject();
+    }
+
+    let x: number;
+    let y: number;
+
+    if (Vector2.isVector2Like(v)) {
+      ({ x, y } = v)
+    } else if (Array.isArray(v)) {
+      [x, y] = v;
+    } else {
+      x = y = v;
+    }
+
+    return {
+      x,
+      y
+    }
+  }
+
+
 
   invert(): this {
     this.x = -this.x;
@@ -145,6 +173,13 @@ class Vector2 implements IVector2 {
 
   toArray(): [number, number] {
     return [this.x, this.y]
+  }
+
+  toObject(): Vector2Object {
+    return {
+      x: this.x,
+      y: this.y
+    }
   }
 
   get normalized(): Vector2 {

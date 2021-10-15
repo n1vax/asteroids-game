@@ -1,15 +1,13 @@
 import Vector2 from "./Vector2";
 
 class Shape2D {
-  public path: [number, number][] = [];
+  public vertices: Vector2[] = [];
 
-  constructor(path: [number, number][]) {
-    this.path = path.map(pathItem => [...pathItem]);
+  constructor(vertices: Vector2[]) {
+    this.vertices = vertices;
   }
 
   rotate(degrees: number): this {
-
-
     return this;
   }
 
@@ -18,15 +16,15 @@ class Shape2D {
   }
 
   translate(position: Vector2): this {
-    this.path = this.path.map(([x, y]) => {
-      return [x + position.x, y + position.y]
-    });
+    // this.vertices = this.vertices.map(([x, y]) => {
+    //   return [x + position.x, y + position.y]
+    // });
 
     return this;
   }
 
   clear() {
-    this.path = [];
+    this.vertices = [];
   }
 }
 

@@ -1,8 +1,9 @@
 import { NextPage } from 'next'
-import dynamic from 'next/dynamic'
+import dynamic from 'next/dynamic';
+import Home from "@components/views/Home";
 
-const HomeView = dynamic<NextPage>(() => import("@components/views/Home"), {
-  ssr: false
-})
+// const HomeView = dynamic<NextPage>(() => import("@components/views/Home"), {
+//   ssr: false
+// })
 
-export default HomeView
+export default Home

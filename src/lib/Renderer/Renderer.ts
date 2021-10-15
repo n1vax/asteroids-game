@@ -1,6 +1,6 @@
 import RendererResizeObserver from "./RendererResizeObserver";
 import Size, { ISize } from "../Size";
-import { IVector2 } from "../Vector2";
+import Vector2, { Vector2Object } from "../Vector2";
 import RendererDraw from "./RendererDraw";
 
 export interface RendererOptions {
@@ -9,11 +9,11 @@ export interface RendererOptions {
 
 class Renderer {
   public readonly ctx: CanvasRenderingContext2D;
-  public readonly resizeObserver: RendererResizeObserver;
   public readonly draw: RendererDraw;
 
   private _dpr: number = 1;
-
+  private _lastSize: Size = this.size;
+  private _shouldUpdate: boolean = true;
 
   constructor(
     public readonly el: HTMLCanvasElement,
@@ -26,12 +26,79 @@ class Renderer {
 
     this.ctx = this.el.getContext("2d")!;
     this._dpr = _options.dpr;
-    this.resizeObserver = new RendererResizeObserver(this);
     this.draw = new RendererDraw(this);
+
+    this._handleWindowResize = this._handleWindowResize.bind(this);
+
+    this.init();
+  }
+
+  init() {
+    this.update();
+
+    window.addEventListener("resize", this._handleWindowResize);
   }
 
   destroy() {
-    this.resizeObserver.destroy();
+    window.addEventListener("resize", this._handleWindowResize);
+  }
+
+  private _handleWindowResize(): void {
+    const size = this.size;
+
+    if (!this._lastSize.isEqual(size)) {
+      this._shouldUpdate = true;
+      this._lastSize = size;
+    }
+  }
+
+  updateOrigin() {
+    const { x, y } = this.origin;
+
+    this.ctx.translate(x, y);
+    this.ctx.scale(this._dpr, this._dpr);
+  }
+
+  update(): void {
+    if (this._shouldUpdate) {
+      this.intrinsicSize = this._lastSize;
+
+      this._shouldUpdate = false;
+
+      this.updateOrigin();
+    } else {
+      this.clear();
+    }
+  }
+
+  get origin(): Vector2Object {
+    const { width, height } = this.intrinsicSize;
+
+    return {
+      x: width / 2,
+      y: height / 2
+    };
+  }
+
+  get boundary(): {
+    start: Vector2Object,
+    end: Vector2Object
+  } {
+    const { width, height } = this.el;
+
+    const x = width / 2;
+    const y = height / 2;
+
+    return {
+      start: {
+        x: -x,
+        y: -y
+      },
+      end: {
+        x,
+        y
+      }
+    }
   }
 
   get dpr(): number {
@@ -65,7 +132,7 @@ class Renderer {
     return this.el.height;
   }
 
-  get center(): IVector2 {
+  get center(): Vector2Object {
     return {
       x: this.width / 2,
       y: this.height / 2
@@ -73,16 +140,20 @@ class Renderer {
   }
 
   clear(): void {
+    this.ctx.save();
+    this.ctx.resetTransform();
     this.ctx.clearRect(
       0,
       0,
       this.el.width,
       this.el.height
     );
+    this.ctx.restore();
   }
 
   background(color: string) {
     this.ctx.save();
+    this.ctx.resetTransform();
     this.ctx.fillStyle = color;
     this.ctx.fillRect(
       0,
