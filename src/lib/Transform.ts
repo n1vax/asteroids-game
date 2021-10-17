@@ -1,7 +1,7 @@
-import Matrix from "./Matrix";
+import Matrix2D from "./Matrix2D";
 
 class Transform2D {
-  private matrix3: Matrix = new Matrix();
+  private matrix3: Matrix2D = new Matrix2D();
 
   constructor() {
 

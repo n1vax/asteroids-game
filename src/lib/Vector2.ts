@@ -182,6 +182,10 @@ class Vector2 implements Vector2Object {
     }
   }
 
+  equals(vector: Vector2Object): boolean {
+    return this.x === vector.x && this.y === vector.y;
+  }
+
   get normalized(): Vector2 {
     return new Vector2(this).normalize();
   }

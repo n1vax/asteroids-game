@@ -1,7 +1,8 @@
 import Asteroid from "./Asteroid";
 import GameLoop from "./GameLoop";
 import MainScene from "./MainScene";
-import Matrix from "./Matrix";
+import Matrix2D from "./Matrix2D";
+import MatrixScene from "./MatrixScene";
 import Random from "./Random";
 import Renderer from "./Renderer/Renderer";
 import Scene from "./Scene";
@@ -17,7 +18,8 @@ class Game {
   public readonly userInput: UserInput;
   public activeSceneName: keyof (typeof this.scenes) = "main";
   public readonly scenes: {
-    main: MainScene
+    main: MainScene,
+    matrix: MatrixScene
   };
   private _activeScene: typeof this.scenes[typeof this.activeSceneName];
 
@@ -37,7 +39,8 @@ class Game {
     });
 
     this.scenes = {
-      main: new MainScene(this)
+      main: new MainScene(this),
+      matrix: new MatrixScene(this)
     }
 
     this._activeScene = this.scenes[this.activeSceneName];
@@ -72,6 +75,12 @@ class Game {
   }
 
   setActiveScene(sceneName: (typeof this.activeSceneName)) {
+    if (sceneName === this.activeSceneName) {
+      return;
+    }
+
+    // console.log("")
+
     this._activeScene.destroy();
 
     const scene = this._activeScene = this.getScene(this.activeSceneName = sceneName);
@@ -89,27 +98,6 @@ class Game {
 
   private _render() {
     this.renderer.update();
-    this.renderer.background("#000");
-
-    const { draw, ctx, center, width, height } = this.renderer;
-
-    draw.grid(10, {
-      color: "#fff",
-      opacity: 0.05
-    });
-
-    draw.grid(50, {
-      color: "#fff",
-      opacity: 0.1
-    });
-
-    draw.line([0, -height / 2], [0, height / 2], {
-      fill: "rgba(0, 255, 0, 0.5)",
-      width: 1
-    });
-    draw.line([-width / 2, 0], [width / 2, 0], {
-      fill: "rgba(255, 0, 0, 0.5)"
-    });
 
     this._activeScene.render();
   }

@@ -1,7 +1,7 @@
 import Scene from "./Scene";
 import Asteroid from "./Asteroid";
 import GameLoop from "./GameLoop";
-import Matrix from "./Matrix";
+import Matrix2D from "./Matrix2D";
 import Random from "./Random";
 import Renderer from "./Renderer/Renderer";
 import Shape2D from "./Shape2D";
@@ -25,12 +25,12 @@ enum SpaceshipControls {
 
 class Spaceship extends GameObject {
   private _size: Size = new Size(100, 100);
-  private _position: Vector2 = Vector2.zero;
+  public readonly position: Vector2 = Vector2.zero;
   // private _position: Vector2 = new Vector2(0);
   private _velocity: Vector2 = Vector2.zero;
-  private _maxSpeed: number = 200;
+  private _maxSpeed: number = 2000;
   private _rotationSpeed: number = 200;
-  private _accelerationSpeed: number = 1;
+  private _accelerationSpeed: number = 10;
   private _direction: Vector2 = Vector2.top;
 
   private _rotationDirection: number = 0;
@@ -56,29 +56,29 @@ class Spaceship extends GameObject {
     const bottomLength = this._size.height / 3;
     const topLength = this._size.height - bottomLength;
 
-    const a = new Vector2(0, -topLength);
-    const b = new Vector2(-this._size.width / 2, bottomLength);
-    const c = new Vector2(0, bottomLength / 2);
-    const d = new Vector2(this._size.width / 2, bottomLength);
+
+
+    const rhombSize = new Size(12, 24);
 
     this.shape = new Shape2D([
-      a,
-      b,
-      c,
-      d
+      new Vector2(0, -topLength),
+      new Vector2(-this._size.width / 2, bottomLength),
+      new Vector2(0, bottomLength / 2),
+      new Vector2(this._size.width / 2, bottomLength)
     ]);
+
     this.rhomb = new Shape2D([
-      new Vector2(0, 12),
-      new Vector2(6, 0),
-      new Vector2(0, -12),
-      new Vector2(-6, 0)
+      new Vector2(0, rhombSize.height / -2),
+      new Vector2(rhombSize.width / 2, rhombSize.height / 4),
+      new Vector2(0, rhombSize.height / 2),
+      new Vector2(rhombSize.width / -2, rhombSize.height / 4),
     ]);
 
     this.rect = new Shape2D([
-      new Vector2(-6, -6),
-      new Vector2(6, -6),
-      new Vector2(6, 6),
-      new Vector2(-6, 6)
+      new Vector2(rhombSize.width / -2, 0),
+      new Vector2(rhombSize.width / 2, 0),
+      new Vector2(rhombSize.width / 2, rhombSize.height),
+      new Vector2(rhombSize.width / -2, rhombSize.height),
     ]);
   }
 
@@ -115,186 +115,147 @@ class Spaceship extends GameObject {
       this._velocity.add(acceleration);
     }
 
-    const maxDeltaSpeed = this._maxSpeed * mspf;
+    const maxSpeed = this._maxSpeed * mspf;
 
-    if (this._velocity.magnitude > maxDeltaSpeed) {
-      this._velocity.magnitude = maxDeltaSpeed;
+    if (this._velocity.magnitude > maxSpeed) {
+      this._velocity.magnitude = maxSpeed;
     }
 
-    if (this._tailSegments.length >= this._maxTailSegments) {
-      // console.log(this._tailSegments);
-      this._tailSegments.shift();
-    }
+    // if (this._tailSegments.length >= this._maxTailSegments) {
+    //   // console.log(this._tailSegments);
+    //   this._tailSegments.shift();
+    // }
 
-    this._tailSegments.push(this._position.clone());
+    this._tailSegments.push(this.position.clone());
 
 
-    this._position.add(this._velocity);
+    this.position.add(this._velocity);
   }
 
-  render() {
-    const { ctx, draw } = this.game.renderer;
+  renderBody() {
+    const { draw, ctx } = this.game.renderer;
+
+    const bodyMatrix = Matrix2D.transform(
+      this.position,
+      this._direction.angle()
+    );
+
+    const bodyVertices = this.shape.vertices.map(vector => {
+      return bodyMatrix.multiply(vector);
+    });
+
+    const rad45Deg = Math.PI / 4;
+
+    draw.applyStyles({
+      stroke: {
+        color: "#fff",
+        width: 2
+      }
+    },
+      () => {
+        draw.path(() => {
+          draw.moveTo(bodyVertices[0]);
+
+          for (let i = 1; i < bodyVertices.length; ++i) {
+            const vertex = bodyVertices[i];
+
+            if (i === 2) {
+              draw.arc(
+                this.position,
+                18,
+                this._direction.angle(true) - Math.PI - rad45Deg,
+                this._direction.angle(true) + rad45Deg
+              )
+            } else {
+              draw.lineTo(vertex)
+            }
+          }
+        });
+      });
+  }
+
+  renderCore() {
+    const { ctx, draw, width, height } = this.game.renderer;
+
     const asteroidDrawerStyle = {
       stroke: {
         color: "#fff",
-        width: 1
-      }
-
-
-    }
-
-    const debugStyles = {
-      stroke: {
-        color: "red",
         width: 2
       }
     }
 
-    const matrix = Matrix.transformed(
-      this._position,
-      this._direction.angle(true)
-    );
+    const angle = this._velocity.x === 0 && this._velocity.y === 0 ?
+      this._direction.angle() :
+      this._velocity.angle();
 
-    const rhombMatrix = Matrix.transformed(
-      this._position,
-      this._velocity.angle(true)
+    const rhombMatrix = Matrix2D.transform(
+      this.position,
+      angle
     );
 
     const rhombVertices = this.rhomb.vertices.map(vector => {
       return rhombMatrix.multiply(vector);
     });
 
-
-    const rectMatrix = Matrix.transformed(
-      this._position,
-      this._velocity.angle(true)
-    ).scale({
-      x: 1,
-      y: 1
-    }, this._velocity.normalized.multiply(6));
-
-    const bodyVertices = this.shape.vertices.map(vector => {
-      return matrix.multiply(vector);
-    })
-
-
+    const rectMatrix = Matrix2D.compose(
+      Matrix2D.rotateAt(angle, rhombVertices[0]),
+      Matrix2D.translate(rhombVertices[0]),
+      Matrix2D.scale({
+        x: 1,
+        y: this._velocity.magnitude / (this._maxSpeed * this.game.gameLoop.mspf)
+      })
+    )
 
     const rectVertices = this.rect.vertices.map(vector => {
       return rectMatrix.multiply(vector);
     })
 
-
-    const rad45Deg = Math.PI / 4;
-    // body
-    draw.applyStyles(asteroidDrawerStyle, () => {
-      draw.path(() => {
-        draw.moveTo(bodyVertices[0]);
-
-        for (let i = 1; i < bodyVertices.length; ++i) {
-          const vertex = bodyVertices[i];
-
-          if (i === 2) {
-            draw.arc(
-              this._position,
-              18,
-              this._direction.angle(true) - Math.PI - rad45Deg,
-              this._direction.angle(true) + rad45Deg
-            )
-          } else {
-            draw.lineTo(vertex)
-          }
-        }
-      });
-    });
-
-    draw.applyStyles(asteroidDrawerStyle, () => {
-      draw.path(rhombVertices);
-    })
-    // speed;
-
     ctx.save();
-
-    ctx.save();
-    ctx.fillStyle = "#fff";
-
     ctx.beginPath();
 
     draw.moveTo(rhombVertices[0]);
     for (let i = 1; i < rhombVertices.length; ++i) {
       draw.lineTo(rhombVertices[i]);
     }
+    ctx.closePath();
+    ctx.stroke();
     ctx.clip();
 
-    // ctx.beginPath();
+    ctx.beginPath();
     draw.moveTo(rectVertices[0]);
     for (let i = 0; i < rectVertices.length; ++i) {
       draw.lineTo(rectVertices[i]);
     }
 
+    ctx.fillStyle = "#fff";
     ctx.fill();
     ctx.closePath();
     ctx.restore();
 
-    // renderer.draw.circle(this._position, 2);
+    draw.applyStyles(asteroidDrawerStyle, () => {
+      draw.path(rhombVertices);
+    })
+  }
 
-    // looking direction
-    // draw.applyStyles(asteroidDrawerStyle, () => {
-    //   // renderer.ctx.translate(this._position.x, this._position.y);
-    //   draw.path([
-    //     this._position,
-    //     this._direction.clone().multiply(this._size.height / 3 * 2).add(this._position)
-    //   ]
-    //   )
-    // });
+  render() {
+    const { ctx, origin } = this.game.renderer;
 
-    // velocity direction
-    // draw.applyStyles(debugStyles, () => {
-    //   ctx.beginPath();
-    //   draw.arc(this._position.clone().add(this._velocity.normalized.multiply(12)), 2);
-    //   ctx.closePath();
-    //   ctx.fill();
-    // });
-    // velocity direction
-    draw.applyStyles(debugStyles, () => {
-      draw.arc(this._position.clone().add(this._velocity.normalized.multiply(6)), 5);
+    // ctx.resetTransform();
 
-      ctx.translate(this._position.x, this._position.y);
-
-      draw.line(
-        Vector2.zero,
-        this._velocity
-          .normalized
-          .multiply(
-            this._velocity.magnitude * 10
-          )
-      )
-    });
-
-    // tail
-    // renderer.ctx.save();
-    // renderer.ctx.strokeStyle = "red";
-    // renderer.ctx.lineWidth = 5;
-    // renderer.ctx.lineCap = "round";
-    // renderer.ctx.lineJoin = "round";
-
-    // renderer.ctx.beginPath();
-
-    // renderer.draw.moveTo(this._tailSegments[0]);
-
-    // for (let i = 1; i < this._tailSegments.length; ++i) {
-    //   renderer.draw.lineTo(this._tailSegments[i]);
-    // }
-    // renderer.ctx.stroke();
-    // renderer.ctx.restore();
+    this.renderBody();
+    this.renderCore();
   }
 }
 
 
 class MainScene extends Scene {
   public entities: GameObject[] = [];
+  public spaceship = new Spaceship(this.game);
 
   init() {
-    this.entities.push(new Spaceship(this.game));
+    this.entities.push(this.spaceship);
+
+    // console.log(this.game.renderer.ctx);
 
     // this.callScenes("init");
     // this.asteroidPolygon = Asteroid.generateVertices({
@@ -305,53 +266,90 @@ class MainScene extends Scene {
     // });
   }
 
+  destroy() {
+    this.entities = [];
+  }
+
   update() {
     this.entities.forEach(entity => entity.update());
   }
 
-  render() {
-    const { draw, ctx, center, width, height } = this.game.renderer;
+  renderAxis(position: Vector2 = Vector2.zero) {
+    const { draw, width, origin, height, boundary } = this.game.renderer;
 
-    draw.grid(10, {
+    let vx = 0;
+
+    if (position.x > boundary.end.x) {
+      vx = position.x - boundary.end.x;
+    } else if (position.x < boundary.start.x) {
+      vx = position.x - boundary.start.x
+    }
+
+    draw.verticalLine(
+      [vx, position.y - origin.y],
+      height,
+      {
+        style: {
+          fill: "rgba(0, 255, 0, 0.5)",
+          width: 2
+        }
+      });
+
+    let hy = 0;
+
+    if (position.y > boundary.end.y) {
+      hy = position.y - boundary.end.y;
+    } else if (position.y < boundary.start.y) {
+      hy = position.y - boundary.start.y
+    }
+
+    draw.horizontalLine(
+      [position.x - origin.x, hy],
+      width,
+      {
+        style: {
+          fill: "rgba(255, 0, 0, 0.5)",
+          width: 2
+        }
+      });
+  }
+
+  cameraFollow(vector: Vector2) {
+    const { ctx, origin } = this.game.renderer;
+
+    ctx.resetTransform();
+
+    const cameraPosition = new Vector2(origin).sub(vector);
+
+    ctx.translate(
+      +cameraPosition.x.toFixed(2),
+      +cameraPosition.y.toFixed(2)
+    );
+
+    ctx.scale(
+      this.game.renderer.dpr,
+      this.game.renderer.dpr,
+    );
+  }
+
+  render() {
+
+    this.game.renderer.background("#000");
+
+    const { draw, origin, width } = this.game.renderer;
+
+    this.cameraFollow(this.spaceship.position);
+    this.renderAxis(this.spaceship.position);
+
+    draw.grid(this.spaceship.position, 10, {
       color: "#fff",
       opacity: 0.05
     });
 
-    draw.grid(50, {
+    draw.grid(this.spaceship.position, 50, {
       color: "#fff",
       opacity: 0.1
     });
-
-    draw.line([0, -height / 2], [0, height / 2], {
-      fill: "rgba(0, 255, 0, 0.5)",
-      width: 1
-    });
-    draw.line([-width / 2, 0], [width / 2, 0], {
-      fill: "rgba(255, 0, 0, 0.5)"
-    });
-
-    // ctx.save();
-    // ctx.strokeStyle = "#fff";
-    // ctx.lineWidth = 1;
-    // draw.path(this.asteroidPolygon);
-    // ctx.stroke();
-    // ctx.restore();
-
-    // ctx.save();
-    // ctx.fillStyle = "white";
-    // const lineHeight = 12;
-    // this.asteroidPolygon.forEach(({ x, y }, i) => {
-    //   ctx.fillText(`№ ${i}`, x + 2, y - lineHeight * 2 - 2);
-    //   ctx.fillText(`x:${x.toFixed(2)}`, x + 2, y - lineHeight - 2);
-    //   ctx.fillText(`y:${y.toFixed(2)}`, x + 2, y - 2);
-
-    //   ctx.save();
-    //   draw.circle({ x, y }, 2);
-    //   ctx.fillStyle = "red";
-    //   ctx.fill();
-    //   ctx.restore();
-    // });
-    // ctx.restore();
 
     this.entities.forEach(entity => entity.render());
   }

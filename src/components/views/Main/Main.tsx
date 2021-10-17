@@ -6,9 +6,10 @@ import Game from "@lib/Game";
 
 interface Props { }
 
-const Home = (props: Props) => {
-  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+const Main = (props: Props) => {
+  const [activeSceneName, setActiveSceneName] = useState<"main" | "matrix">("main");
   const gameRef = useRef<Game | null>();
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
 
   const [asteroidProperties, setAsteroidProperties] = useState(() => {
     return {
@@ -17,7 +18,7 @@ const Home = (props: Props) => {
       spikiness: 0,
       maxSpikeSize: 200
     }
-  })
+  });
 
   useEffect(() => {
     const canvasEl = canvasElRef.current!;
@@ -32,27 +33,40 @@ const Home = (props: Props) => {
     }
   }, []);
 
+  useEffect(() => {
+    const game = gameRef.current!;
+
+    game.setActiveScene(activeSceneName);
+  }, [activeSceneName]);
+
   const handleButtonClick = () => {
     const game = gameRef.current!;
 
     game.regenerateAsteroid(asteroidProperties)
   }
 
-  const handleInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
-    const game = gameRef.current!;
+  // const handleInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+  //   const game = gameRef.current!;
 
-    setAsteroidProperties(old => ({
-      ...old,
-      [e.target.name]: +e.target.value
-    }));
+  //   setAsteroidProperties(old => ({
+  //     ...old,
+  //     [e.target.name]: +e.target.value
+  //   }));
 
-    game.regenerateAsteroid(asteroidProperties)
-  }
+  //   game.regenerateAsteroid(asteroidProperties)
+  // }
 
   return (
     <div className="app">
       <div style={{ color: "#fff" }} className="ui">
-        <button onClick={handleButtonClick}>
+        <button onClick={() => setActiveSceneName("main")}>
+          main
+        </button>
+        <button onClick={() => setActiveSceneName("matrix")}>
+          matrix
+        </button>
+
+        {/* <button onClick={handleButtonClick}>
           regenerate
         </button>
         <div>
@@ -100,11 +114,11 @@ const Home = (props: Props) => {
             min={3}
             max={100}
           />
-        </div>
+        </div> */}
       </div>
       <canvas className="canvas" ref={canvasElRef} />
     </div>
   )
 }
 
-export default Home
+export default Main

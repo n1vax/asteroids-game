@@ -1,6 +1,6 @@
 import Size, { ISize } from "@lib/Size";
 import { countDigits } from "@lib/utils/math";
-import Vector2, { Vector2Object } from "@lib/Vector2";
+import Vector2, { Vector2Like, Vector2Object } from "@lib/Vector2";
 import Renderer from "./Renderer";
 
 interface DrawShapeStyle {
@@ -28,6 +28,11 @@ interface IRendererDraw {
   moveTo: DrawLine,
   lineTo: DrawLine
 }
+
+const DEFAULT_STROKE_STYLE: Readonly<Required<StrokeStyle>> = {
+  width: 1,
+  fill: "#000"
+};
 
 class RendererDraw implements IRendererDraw {
   private readonly _renderer: Renderer
@@ -116,33 +121,65 @@ class RendererDraw implements IRendererDraw {
     this._renderer.ctx.lineTo(x, y);
   }
 
-  grid(size: number, {
-    opacity = 0.2,
-    color = "#000"
-  }: {
-    opacity?: number,
-    color?: string
-  } = { opacity: 0.2, color: "#000" }) {
+  grid(
+    center: Vector2,
+    size: number, {
+      opacity = 0.2,
+      color = "#000"
+    }: {
+      opacity?: number,
+      color?: string
+    } = { opacity: 0.2, color: "#000" }) {
+    const { origin, height, width } = this._renderer;
     const { start, end } = this._renderer.boundary;
 
     this._renderer.ctx.save();
-
     this._renderer.ctx.globalAlpha = opacity;
 
-    for (let x = 0, max = end.x; x < max; x += size) {
-      this.line([x, start.y], [x, end.y], { fill: color })
+    const numOfLinesByX = Math.floor(width / size);
 
-      if (x !== 0) {
-        this.line([-x, start.y], [-x, end.y], { fill: color })
-      }
+    const startX = numOfLinesByX * size / 2;
+    const lineOffsetX = (center.x - startX) % size;
+    const offsetX = startX + lineOffsetX - center.x;
+
+    for (let l = 0; l <= numOfLinesByX; ++l) {
+      const y = center.y - origin.y;
+      const x = l * size - offsetX;
+
+      this.verticalLine(
+        [x, y],
+        height,
+        {
+          style: {
+            fill: color
+          },
+          // fixPxBoundary: true
+        }
+      )
     }
 
-    for (let y = 0, max = end.y; y < max; y += size) {
-      this.line([start.x, y], [end.x, y], { fill: color })
+    console.log(origin.x, origin.y);
 
-      if (y !== 0) {
-        this.line([start.x, -y], [end.x, -y], { fill: color })
-      }
+    const numOfLinesByY = Math.floor(height / size);
+    const startY = numOfLinesByY * size / 2;
+    const lineOffsetY = (center.y - startY) % size;
+    const offsetY = startY + lineOffsetY - center.y;
+
+    const x = center.x - origin.x;
+
+    for (let l = 0; l <= numOfLinesByY; ++l) {
+      const y = l * size - offsetY;
+
+      this.horizontalLine(
+        [x, y],
+        width,
+        {
+          style: {
+            fill: color
+          },
+          // fixPxBoundary: true
+        }
+      )
     }
 
     this._renderer.ctx.restore();
@@ -150,35 +187,90 @@ class RendererDraw implements IRendererDraw {
   }
 
   line(
-    start: Vector2Object | [number, number],
-    end: Vector2Object | [number, number],
+    start: Vector2Like,
+    end: Vector2Like,
     {
-      fill = "#000",
-      width = 1
-    }: StrokeStyle = {
-        fill: "#000",
-        width: 1
+      style = DEFAULT_STROKE_STYLE,
+      fixPxBoundary
+    }: {
+      style?: StrokeStyle,
+      fixPxBoundary?: boolean
+    } = {
+        style: DEFAULT_STROKE_STYLE,
       }
   ) {
+    start = Vector2.toObject(start);
+    end = Vector2.toObject(end);
+
+    if (fixPxBoundary) {
+      const lineWidth = style && style.width ? style.width : DEFAULT_STROKE_STYLE.width;
+
+      start = {
+        x: this.fixLineWidthBoundaryMismatch(start.x, lineWidth),
+        y: this.fixLineWidthBoundaryMismatch(start.y, lineWidth)
+      }
+
+      end = {
+        x: this.fixLineWidthBoundaryMismatch(end.x, lineWidth),
+        y: this.fixLineWidthBoundaryMismatch(end.y, lineWidth)
+      }
+    }
+
+    this.path([
+      start,
+      end
+    ]);
+
+    this.stroke(style)
+  }
+
+  verticalLine(
+    position: Vector2Like,
+    length: number,
+    config: {
+      style?: StrokeStyle,
+      fixPxBoundary?: boolean
+    } = {}) {
+    const { x, y } = Vector2.toObject(position);
+
+    this.line(
+      [x, y],
+      [x, y + length],
+      config
+    );
+  }
+
+  horizontalLine(
+    position: Vector2Like,
+    length: number,
+    config: {
+      style?: StrokeStyle,
+      fixPxBoundary?: boolean
+    } = {}) {
+    const { x, y } = Vector2.toObject(position);
+
+    this.line(
+      [x, y],
+      [x + length, y],
+      config
+    );
+  }
+
+  stroke({
+    width = DEFAULT_STROKE_STYLE.width,
+    fill = DEFAULT_STROKE_STYLE.fill
+  }: StrokeStyle = DEFAULT_STROKE_STYLE) {
     const { ctx } = this._renderer;
-    const startPoint = this.toPoint(start);
-    const endPoint = this.toPoint(end);
 
     ctx.save();
-    ctx.beginPath();
-    ctx.lineWidth = width;
     ctx.strokeStyle = fill;
-    ctx.moveTo(
-      this.fixLineWidthBoundaryMismatch(startPoint[0], width),
-      this.fixLineWidthBoundaryMismatch(startPoint[1], width)
-    )
-    ctx.lineTo(
-      this.fixLineWidthBoundaryMismatch(endPoint[0], width),
-      this.fixLineWidthBoundaryMismatch(endPoint[1], width)
-    )
+    ctx.lineWidth = width;
     ctx.stroke();
-    ctx.closePath();
     ctx.restore();
+  }
+
+  roundPx(px: number) {
+    return Math.round(px / 0.5) * 0.5
   }
 
   path(points: ([number, number] | Vector2Object)[]): void;
